@@ -1,6 +1,6 @@
 import socket
 
-def start_host(port):
+def start_host(port): #start the host (TCP connection, 1 person must be 'host' and the other 'client' after that its basic p2p connection)
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
@@ -19,9 +19,13 @@ def start_host(port):
 
 def start_client(ip, port):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.connect((ip, port))
-
-    print('You have connected!!!')
+    try:
+        sock.connect((ip, port))
+        print('You have connected!!!')
+    except ConnectionRefusedError:
+        print("Could not connect — is the host running?")
+        sock.close()
+        return None
 
     return sock
     
