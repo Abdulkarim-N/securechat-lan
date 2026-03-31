@@ -1,5 +1,6 @@
 from network import start_host, start_client
 from utils import send_msg, recv_msg
+from crypto import generate_dh_keys, serialize_public_key, deserialize_public_key
 
 DEFAULT_PORT = 5000
 
@@ -27,6 +28,12 @@ def start_chat(connection, user): #test func mostly
 
 if __name__ == '__main__':
     connection, user = establish_connection()
+
+    private_key, public_key = generate_dh_keys()
+    serialized = serialize_public_key(public_key)
+    recovered = deserialize_public_key(serialized)
+    print("Keys generated successfully")
+    print(f"Serialized length: {len(serialized)} bytes")
     start_chat(connection, user)
 
 
