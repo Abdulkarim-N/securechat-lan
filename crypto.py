@@ -4,6 +4,8 @@ from cryptography.hazmat.primitives.serialization import (
     PublicFormat,
     load_der_public_key
 )
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+from cryptography.hazmat.primitives import hashes
 
 def generate_dh_keys():
     parameters = generate_parameters(generator=2, key_size=2048) #get the parameters to make the keys
@@ -38,3 +40,12 @@ def fingerprint(public_key_bytes):
     digest = hashes.Hash(hashes.SHA256())
     digest.update(public_key_bytes)
     return digest.finalize().hex()
+
+
+def serialize_parameters(parameters):
+    return parameters.parameter_bytes(Encoding.DER, ParameterFormat.PKCS3)
+
+def deserialize_parameters(data):
+    from cryptography.hazmat.primitives.asymmetric.dh import DHParameterNumbers
+    from cryptography.hazmat.primitives.serialization import load_der_parameters
+    return load_der_parameters(data)
