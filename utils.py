@@ -1,30 +1,21 @@
 import struct
 
-def send_msg(sock,data): #sending a message
+def send_msg(sock, data):
     length = len(data)
     header = struct.pack(">I", length)
     sock.sendall(header)
     sock.sendall(data)
-    print('msg sent!!')
-    
 
 def recv_exact(sock, n):
     data = b""
-
     while len(data) < n:
-        chunk = sock.recv(n-len(data))
+        chunk = sock.recv(n - len(data))
         if chunk == b"":
-            raise ValueError
+            raise ConnectionError("Connection closed unexpectedly")
         data += chunk
     return data
 
-
-
-
-def recv_msg(sock): #receving a msg
+def recv_msg(sock):
     header = recv_exact(sock, 4)
     length = struct.unpack(">I", header)[0]
-    data = recv_exact(sock,length)
-    return data
-
-
+    return recv_exact(sock, length)
