@@ -215,4 +215,3 @@ User verifies fingerprint matches out of band
 ---
 
 ## Acknowledgements
-Built for SOFE4840U Computer Security — Ontario Tech University, Winter 2026.

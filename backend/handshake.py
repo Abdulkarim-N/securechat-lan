@@ -67,4 +67,4 @@ def perform_handshake(sock, mode):
         raise Exception("Fingerprint mismatch - connection terminated")
 
     print("Handshake complete, session established!")
-    return aes_key
+    return {"aes_key": aes_key, "fingerprint": fp}
