@@ -49,10 +49,13 @@ def connect_host():
 
 @app.post("/connect/client")
 def connect_client(request: ConnectRequest):
+    if not request.ip or request.ip.strip() == "":
+        return {"status": "failed", "reason": "No IP provided"}
+    
     state.mode = "client"
     state.connection = start_client(request.ip, state.DEFAULT_PORT)
     if state.connection is None:
-        return {"status": "failed"}
+        return {"status": "failed", "reason": "Could not connect"}
     state.connected = True
     state.peer_ip = request.ip
     return {"status": "connected"}

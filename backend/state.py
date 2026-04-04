@@ -1,6 +1,4 @@
 # state.py
-DEFAULT_PORT = 5000
-
 class AppState:
     def __init__(self):
         self.connection = None
@@ -9,5 +7,6 @@ class AppState:
         self.connected = False
         self.peer_ip = None
         self.fingerprint = None
+        self.DEFAULT_PORT = 5000
 
 state = AppState()
