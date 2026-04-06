@@ -11,7 +11,6 @@ export default function ChatScreen() {
     const messagesEnd = useRef(null)
 
     useEffect(() => {
-        // small delay to ensure backend is ready
         const connectTimeout = setTimeout(() => {
             ws.current = new WebSocket(`${WS_URL}/ws/chat`)
 
@@ -19,17 +18,17 @@ export default function ChatScreen() {
 
             ws.current.onmessage = (event) => {
                 const text = event.data
+                const isSystem = text.startsWith("[File received")
                 setMessages(prev => [...prev, {
                     text: text,
-                    sender: "peer",
-                    isFile: text.startsWith("[File received")
+                    sender: isSystem ? "system" : "peer"
                 }])
             }
 
             ws.current.onclose = () => {
                 setConnected(false)
                 setMessages(prev => [...prev, {
-                    text: "Peer disconnected",
+                    text: "Session ended — peer disconnected",
                     sender: "system"
                 }])
             }
@@ -50,7 +49,10 @@ export default function ChatScreen() {
     function sendMessage() {
         if (input.trim() === "" || !ws.current) return
         ws.current.send(input)
-        setMessages(prev => [...prev, { text: input, sender: "me" }])
+        setMessages(prev => [...prev, {
+            text: input,
+            sender: "me"
+        }])
         setInput("")
     }
 
@@ -87,52 +89,103 @@ export default function ChatScreen() {
             setFileError(`File transfer failed: ${err.message}`)
         }
 
-        // reset file input so same file can be sent again
         e.target.value = ""
     }
 
     async function disconnect() {
         await axios.post(`${API_URL}/disconnect`)
         if (ws.current) ws.current.close()
+        setMessages(prev => [...prev, {
+            text: "You disconnected",
+            sender: "system"
+        }])
+        setConnected(false)
     }
 
     return (
         <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
-            <div style={{ padding: "10px", borderBottom: "1px solid #ccc" }}>
-                <span>Status: {connected ? "Connected" : "Disconnected"}</span>
-                <button onClick={disconnect} style={{ marginLeft: "10px" }}>
+
+            {/* header */}
+            <div style={{
+                padding: "10px",
+                borderBottom: "1px solid #ccc",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between"
+            }}>
+                <span>
+                    Status: {connected
+                        ? <span style={{ color: "green" }}>Connected</span>
+                        : <span style={{ color: "red" }}>Disconnected</span>
+                    }
+                </span>
+                <button onClick={disconnect} style={{ padding: "6px 12px" }}>
                     Disconnect
                 </button>
             </div>
 
+            {/* message area */}
             <div style={{ flex: 1, overflowY: "auto", padding: "10px" }}>
                 {messages.map((msg, i) => (
                     <div key={i} style={{
-                        textAlign: msg.sender === "me" ? "right" : "left",
-                        margin: "5px 0",
-                        color: msg.sender === "system" ? "gray" : "black"
+                        textAlign: msg.sender === "me" ? "right" :
+                                   msg.sender === "system" ? "center" : "left",
+                        margin: "5px 0"
                     }}>
-                        <span style={{
-                            background: msg.sender === "me" ? "#0084ff" : "#e5e5ea",
-                            color: msg.sender === "me" ? "white" : "black",
-                            padding: "8px 12px",
-                            borderRadius: "18px",
-                            display: "inline-block",
-                            maxWidth: "70%"
-                        }}>
-                            {msg.text}
-                        </span>
+                        {msg.sender === "system" ? (
+                            <span style={{
+                                color: "gray",
+                                fontSize: "12px",
+                                fontStyle: "italic"
+                            }}>
+                                {msg.text}
+                            </span>
+                        ) : (
+                            <span style={{
+                                background: msg.sender === "me" ? "#0084ff" : "#e5e5ea",
+                                color: msg.sender === "me" ? "white" : "black",
+                                padding: "8px 12px",
+                                borderRadius: "18px",
+                                display: "inline-block",
+                                maxWidth: "70%",
+                                wordBreak: "break-word"
+                            }}>
+                                {msg.text}
+                            </span>
+                        )}
                     </div>
                 ))}
                 <div ref={messagesEnd} />
             </div>
 
-            {fileError && <p style={{ color: "red", padding: "5px" }}>{fileError}</p>}
+            {/* file error */}
+            {fileError && (
+                <p style={{ color: "red", padding: "5px", textAlign: "center", margin: 0 }}>
+                    {fileError}
+                </p>
+            )}
 
-            <div style={{ padding: "10px", borderTop: "1px solid #ccc", display: "flex", gap: "8px" }}>
-                <label style={{ cursor: "pointer", padding: "8px", border: "1px solid #ccc", borderRadius: "4px" }}>
+            {/* input area */}
+            <div style={{
+                padding: "10px",
+                borderTop: "1px solid #ccc",
+                display: "flex",
+                gap: "8px",
+                alignItems: "center"
+            }}>
+                <label style={{
+                    cursor: "pointer",
+                    padding: "8px",
+                    border: "1px solid #ccc",
+                    borderRadius: "4px",
+                    userSelect: "none"
+                }}>
                     📎
-                    <input type="file" style={{ display: "none" }} onChange={sendFile} />
+                    <input
+                        type="file"
+                        style={{ display: "none" }}
+                        onChange={sendFile}
+                    />
                 </label>
                 <input
                     type="text"
@@ -140,9 +193,17 @@ export default function ChatScreen() {
                     onChange={e => setInput(e.target.value)}
                     onKeyDown={handleKeyDown}
                     placeholder="Type a message..."
-                    style={{ flex: 1, padding: "8px", borderRadius: "4px", border: "1px solid #ccc" }}
+                    style={{
+                        flex: 1,
+                        padding: "8px",
+                        borderRadius: "4px",
+                        border: "1px solid #ccc"
+                    }}
                 />
-                <button onClick={sendMessage} style={{ padding: "8px 16px" }}>
+                <button
+                    onClick={sendMessage}
+                    style={{ padding: "8px 16px" }}
+                >
                     Send
                 </button>
             </div>
