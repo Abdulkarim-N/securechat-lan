@@ -60,11 +60,5 @@ def perform_handshake(sock, mode):
     print(f"\nPeer fingerprint: {fp}")
     print("Verify this matches your peer's fingerprint out of band.")
 
-    # Step 10 - ask for confirmation
-    confirm = input("Does the fingerprint match? (y/n): ")
-    if confirm.lower() != "y":
-        sock.close()
-        raise Exception("Fingerprint mismatch - connection terminated")
-
     print("Handshake complete, session established!")
     return {"aes_key": aes_key, "fingerprint": fp}

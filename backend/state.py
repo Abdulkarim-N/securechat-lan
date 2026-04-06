@@ -1,4 +1,3 @@
-# state.py
 class AppState:
     def __init__(self):
         self.connection = None
@@ -7,6 +6,9 @@ class AppState:
         self.connected = False
         self.peer_ip = None
         self.fingerprint = None
+        self.handshake_complete = False
+        self.handshake_error = None
+        self.handshake_started = False
         self.DEFAULT_PORT = 5000
 
 state = AppState()

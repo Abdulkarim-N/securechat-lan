@@ -41,38 +41,40 @@ def send_file(sock, aes_key, filepath):
     print(f"File {filename} sent successfully")
 
 def receive_file(sock, aes_key, header_data):
-    # parse header — format: filename|chunk_count
     header = header_data.decode()
     filename, chunk_count = header.split("|")
     chunk_count = int(chunk_count)
-    
+
     print(f"\nIncoming file: {filename} ({chunk_count} chunks)")
-    
+
     chunks = {}
-    
-    # Step 1 - receive all chunks
+
     while len(chunks) < chunk_count:
         raw = recv_msg(sock)
         data = decrypt(aes_key, raw)
         msg_type = data[:1]
-        
+
         if msg_type == MSG_FILE_CHUNK:
             chunk_number = int.from_bytes(data[1:5], byteorder="big")
             encrypted_chunk = data[5:]
             decrypted_chunk = decrypt(aes_key, encrypted_chunk)
             chunks[chunk_number] = decrypted_chunk
             print(f"Received chunk {chunk_number + 1}/{chunk_count}")
-        
+
         elif msg_type == MSG_FILE_END:
             break
-    
-    # Step 2 - reassemble in correct order
-    output_filename = f"received_{filename}"
-    with open(output_filename, "wb") as f:
+
+    # save to received_files folder next to backend
+    import os
+    save_dir = os.path.join(os.path.dirname(__file__), "received_files")
+    os.makedirs(save_dir, exist_ok=True)
+    output_path = os.path.join(save_dir, f"received_{filename}")
+
+    with open(output_path, "wb") as f:
         for i in range(chunk_count):
             if i in chunks:
                 f.write(chunks[i])
             else:
                 print(f"Warning: missing chunk {i}")
-    
-    print(f"File saved as {output_filename}")
+
+    print(f"File saved to {output_path}")
