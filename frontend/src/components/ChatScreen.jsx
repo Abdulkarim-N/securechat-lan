@@ -62,21 +62,33 @@ export default function ChatScreen() {
         const file = e.target.files[0]
         if (!file) return
 
+        setMessages(prev => [...prev, {
+            text: `Sending file: ${file.name}...`,
+            sender: "system"
+        }])
+
         const formData = new FormData()
         formData.append("file", file)
 
         try {
-            await axios.post(`${API_URL}/send/file`, formData, {
+            const response = await axios.post(`${API_URL}/send/file`, formData, {
                 headers: { "Content-Type": "multipart/form-data" }
             })
-            setMessages(prev => [...prev, {
-                text: `File sent: ${file.name}`,
-                sender: "system"
-            }])
+            if (response.data.status === "sent") {
+                setMessages(prev => [...prev, {
+                    text: `File sent: ${file.name}`,
+                    sender: "system"
+                }])
+            } else {
+                setFileError(`File transfer failed: ${response.data.error}`)
+            }
             setFileError("")
-        } catch {
-            setFileError("File transfer failed")
+        } catch (err) {
+            setFileError(`File transfer failed: ${err.message}`)
         }
+
+        // reset file input so same file can be sent again
+        e.target.value = ""
     }
 
     async function disconnect() {

@@ -2,41 +2,40 @@ import os
 from utils import send_msg, recv_msg
 from crypto import encrypt, decrypt
 
-# Message type prefixes
 MSG_FILE_HEADER = b"F"
 MSG_FILE_CHUNK = b"C"
 MSG_FILE_END = b"E"
 
-CHUNK_SIZE = 4096  # 4KB per chunk
+CHUNK_SIZE = 4096
 
-def send_file(sock, aes_key, filepath):
+def send_file(sock, aes_key, filepath, original_filename=None):
     if not os.path.exists(filepath):
         print("File not found")
         return
-    
-    filename = os.path.basename(filepath)
+
+    filename = original_filename or os.path.basename(filepath)
     filesize = os.path.getsize(filepath)
     chunk_count = (filesize + CHUNK_SIZE - 1) // CHUNK_SIZE
-    
-    # Step 1 - send header
+
+    # send header
     header = f"{filename}|{chunk_count}".encode()
     send_msg(sock, encrypt(aes_key, MSG_FILE_HEADER + header))
     print(f"Sending {filename} ({filesize} bytes) in {chunk_count} chunks...")
-    
-    # Step 2 - send chunks
+
+    # send chunks
     with open(filepath, "rb") as f:
         chunk_number = 0
         while True:
             chunk = f.read(CHUNK_SIZE)
             if not chunk:
                 break
-            encrypted_chunk = encrypt(aes_key, chunk)
             chunk_number_bytes = chunk_number.to_bytes(4, byteorder="big")
-            send_msg(sock, encrypt(aes_key, MSG_FILE_CHUNK + chunk_number_bytes + encrypted_chunk))
+            payload = MSG_FILE_CHUNK + chunk_number_bytes + chunk
+            send_msg(sock, encrypt(aes_key, payload))
             chunk_number += 1
             print(f"Sent chunk {chunk_number}/{chunk_count}")
-    
-    # Step 3 - send end signal
+
+    # send end signal
     send_msg(sock, encrypt(aes_key, MSG_FILE_END + filename.encode()))
     print(f"File {filename} sent successfully")
 
@@ -51,21 +50,19 @@ def receive_file(sock, aes_key, header_data):
 
     while len(chunks) < chunk_count:
         raw = recv_msg(sock)
-        data = decrypt(aes_key, raw)
-        msg_type = data[:1]
+        message = decrypt(aes_key, raw)
+        msg_type = message[:1]
 
         if msg_type == MSG_FILE_CHUNK:
-            chunk_number = int.from_bytes(data[1:5], byteorder="big")
-            encrypted_chunk = data[5:]
-            decrypted_chunk = decrypt(aes_key, encrypted_chunk)
-            chunks[chunk_number] = decrypted_chunk
+            chunk_number = int.from_bytes(message[1:5], byteorder="big")
+            chunk_data = message[5:]
+            chunks[chunk_number] = chunk_data
             print(f"Received chunk {chunk_number + 1}/{chunk_count}")
 
         elif msg_type == MSG_FILE_END:
             break
 
-    # save to received_files folder next to backend
-    import os
+    # save to received_files folder
     save_dir = os.path.join(os.path.dirname(__file__), "received_files")
     os.makedirs(save_dir, exist_ok=True)
     output_path = os.path.join(save_dir, f"received_{filename}")
@@ -78,3 +75,4 @@ def receive_file(sock, aes_key, header_data):
                 print(f"Warning: missing chunk {i}")
 
     print(f"File saved to {output_path}")
+    return filename

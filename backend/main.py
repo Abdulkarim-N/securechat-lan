@@ -143,7 +143,6 @@ def verify(request: VerifyRequest):
 async def chat_websocket(websocket: WebSocket):
     await websocket.accept()
 
-    # wait for aes_key to be available
     if not state.aes_key:
         await websocket.close()
         return
@@ -155,18 +154,29 @@ async def chat_websocket(websocket: WebSocket):
             try:
                 from utils import recv_msg
                 from crypto import decrypt
+                from file_transfer import receive_file, MSG_FILE_HEADER
+
                 if not state.connection or not state.aes_key:
-                    print("Receive thread: no connection or key")
                     break
-                data = recv_msg(state.connection)
-                message = decrypt(state.aes_key, data)
+
+                raw = recv_msg(state.connection)
+                message = decrypt(state.aes_key, raw)
                 msg_type = message[:1]
                 content = message[1:]
+
                 if msg_type == b"M":
                     asyncio.run_coroutine_threadsafe(
                         websocket.send_text(content.decode()),
                         loop
                     )
+                elif msg_type == MSG_FILE_HEADER:
+                    # receive the file — this blocks until complete
+                    filename = receive_file(state.connection, state.aes_key, content)
+                    asyncio.run_coroutine_threadsafe(
+                        websocket.send_text(f"[File received: {filename}]"),
+                        loop
+                    )
+
             except Exception as e:
                 print(f"Receive thread error: {type(e).__name__}: {e}")
                 break
@@ -188,29 +198,27 @@ async def chat_websocket(websocket: WebSocket):
     except Exception as e:
         print(f"WebSocket send error: {type(e).__name__}: {e}")
 # ─── File Transfer ────────────────────────────────────────
-
 @app.post("/send/file")
 async def send_file_endpoint(file: UploadFile = File(...)):
     from file_transfer import send_file
     import os
-    import tempfile
 
-    # get file extension properly
     _, ext = os.path.splitext(file.filename)
-    
+    original_name = file.filename
+
     with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
         contents = await file.read()
         tmp.write(contents)
         tmp_path = tmp.name
 
     try:
-        send_file(state.connection, state.aes_key, tmp_path)
-        return {"status": "sent", "filename": file.filename}
+        send_file(state.connection, state.aes_key, tmp_path, original_name)
+        return {"status": "sent", "filename": original_name}
     except Exception as e:
+        print(f"File send error: {e}")
         return {"status": "failed", "error": str(e)}
     finally:
         os.unlink(tmp_path)
-
 # ─── Disconnect ───────────────────────────────────────────
 
 @app.post("/disconnect")
